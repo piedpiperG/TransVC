@@ -1,0 +1,6 @@
+data_svc
+dataset_raw
+hubert_pretrain
+speaker_pretrain
+whisper_pretrain
+crepe/assets
