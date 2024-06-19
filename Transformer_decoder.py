@@ -2,10 +2,12 @@ from torch.nn import TransformerDecoder, TransformerDecoderLayer
 import torch.nn as nn
 from Transformer_encoder import PositionalEncoding
 import torch
+from vits_decoder.generator import Generator
+from vits import commons
 
 
 class SpeechFeatureDecoder(nn.Module):
-    def __init__(self, feature_size, nhead, num_decoder_layers, dim_feedforward, mel_bins, dropout=0.1):
+    def __init__(self, feature_size, nhead, num_decoder_layers, dim_feedforward, mel_bins, hp, dropout=0.1):
         super(SpeechFeatureDecoder, self).__init__()
         # Positional Encoding for adding temporal dynamics
         self.pos_decoder = PositionalEncoding(feature_size)
@@ -28,13 +30,16 @@ class SpeechFeatureDecoder(nn.Module):
             nn.Linear(feature_size * 2, mel_bins)  # 假设输出Mel频谱的带数为mel_bins
         )
 
-    def forward(self, encoded_features, target_speaker_features):
+        self.dec = Generator(hp=hp)
+        self.segment_size = hp.data.segment_size // hp.data.hop_length
+
+    def forward(self, encoded_features, target_speaker_features, pitch_features):
         target_speaker_features = target_speaker_features.permute(1, 0, 2)
         # Adjust dimensions
-        target_speaker_features = self.target_speaker_proj(target_speaker_features)
+        adjusted_speaker_features = self.target_speaker_proj(target_speaker_features)
 
         # Now we can safely add since both tensors match in all dimensions
-        decoder_input = encoded_features + target_speaker_features
+        decoder_input = encoded_features + adjusted_speaker_features
 
         # 添加位置编码
         decoder_input = self.pos_decoder(decoder_input)
@@ -42,10 +47,28 @@ class SpeechFeatureDecoder(nn.Module):
         # 正确调用解码器，提供tgt和memory
         output = self.transformer_decoder(tgt=decoder_input, memory=encoded_features)
         output = self.output_proj(output)
+        output = output.permute(1, 2, 0)
 
-        # Generate Mel spectrogram
-        mel_spectrogram = self.mel_generator(output)
-        return mel_spectrogram.permute(1, 2, 0)  # 调整为 [batch_size, mel_bins, time_steps]
+        target_speaker_features = target_speaker_features.permute(1, 0, 2)
+        target_speaker_features = torch.mean(target_speaker_features, dim=1)
+
+        # print(f'target_speaker_features shape:{target_speaker_features.shape}')
+        # print(f'output shape:{output.shape}')
+        # print(f'pitch_features shape:{pitch_features.shape}')
+
+        x_slice, p_slice, ids_str = commons.rand_slice_segments_with_pitch(output, pitch_features, self.segment_size)
+
+        # print(f'x_slice shape: {x_slice.shape}')
+        # print(f'p_slice shape: {p_slice.shape}')
+        # print(f'ids_str_before: {ids_str}')
+
+        audio = self.dec(target_speaker_features, x_slice, p_slice)
+
+        # print(f'audio shape:{audio.shape}')
+        # print(f'ids_str_after:{ids_str}')
+        # print()
+
+        return audio, ids_str
 
 
 if __name__ == '__main__':

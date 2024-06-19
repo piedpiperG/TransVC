@@ -16,12 +16,11 @@ class SpeechFeatureTransformer(nn.Module):
                                                  dim_feedforward=dim_feedforward, dropout=dropout)
         self.transformer_encoder = TransformerEncoder(encoder_layers, num_encoder_layers)
 
-    def forward(self, hubert, pitch, speaker, ppg):
+    def forward(self, hubert, pitch, ppg):
         # Project all features to the same dimension
         hubert = self.hubert_proj(hubert)
         pitch = self.pitch_proj(pitch.unsqueeze(-1))  # Add an extra dimension to pitch for linear layer
         pitch = torch.squeeze(pitch, dim=2)  # Remove the extra dimension
-        speaker = self.speaker_proj(speaker)
         ppg = self.ppg_proj(ppg)
 
         # print(f'hubert: {hubert.shape}')
@@ -30,7 +29,7 @@ class SpeechFeatureTransformer(nn.Module):
         # print(f'ppg: {ppg.shape}')
 
         # Combine features
-        combined_features = hubert + pitch + speaker + ppg  # Element-wise addition
+        combined_features = hubert + pitch + ppg  # Element-wise addition
         combined_features = self.pos_encoder(combined_features)
         output = self.transformer_encoder(combined_features)
         return output

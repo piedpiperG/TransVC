@@ -125,6 +125,7 @@ class Generator(torch.nn.Module):
         har_source = har_source.transpose(1, 2)
 
         for i in range(self.num_upsamples):
+            # print(f'i:{i}')
             # upsampling
             x = self.ups[i](x)
             # nsf
@@ -133,11 +134,14 @@ class Generator(torch.nn.Module):
             # AMP blocks
             xs = None
             for j in range(self.num_kernels):
+                # print(f'j:{j}')
                 if xs is None:
                     xs = self.resblocks[i * self.num_kernels + j](x)
                 else:
                     xs += self.resblocks[i * self.num_kernels + j](x)
             x = xs / self.num_kernels
+
+        # print('pass circle')
 
         # post conv
         x = self.activation_post(x)
