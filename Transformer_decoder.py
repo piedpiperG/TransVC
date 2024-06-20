@@ -23,17 +23,12 @@ class SpeechFeatureDecoder(nn.Module):
         # Adjust dimensionality of target speaker features to match encoded features
         self.target_speaker_proj = nn.Linear(256, feature_size)  # new line here
 
-        # Mel Spectrogram Generator
-        self.mel_generator = nn.Sequential(
-            nn.Linear(feature_size, feature_size * 2),
-            nn.ReLU(),
-            nn.Linear(feature_size * 2, mel_bins)  # 假设输出Mel频谱的带数为mel_bins
-        )
-
         self.dec = Generator(hp=hp)
         self.segment_size = hp.data.segment_size // hp.data.hop_length
 
-    def forward(self, encoded_features, target_speaker_features, pitch_features):
+        self.hp = hp
+
+    def forward(self, encoded_features, target_speaker_features, pitch_features, wav_len):
         target_speaker_features = target_speaker_features.permute(1, 0, 2)
         # Adjust dimensions
         adjusted_speaker_features = self.target_speaker_proj(target_speaker_features)
@@ -56,7 +51,9 @@ class SpeechFeatureDecoder(nn.Module):
         # print(f'output shape:{output.shape}')
         # print(f'pitch_features shape:{pitch_features.shape}')
 
-        x_slice, p_slice, ids_str = commons.rand_slice_segments_with_pitch(output, pitch_features, self.segment_size)
+        x_slice, p_slice, ids_str = commons.rand_slice_segments_with_pitch(x=output, pitch=pitch_features,
+                                                                           x_lengths=wav_len / self.hp.data.hop_length,
+                                                                           segment_size=self.segment_size)
 
         # print(f'x_slice shape: {x_slice.shape}')
         # print(f'p_slice shape: {p_slice.shape}')

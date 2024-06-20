@@ -25,8 +25,15 @@ class SpeechFeatureTransformer(nn.Module):
 
         # print(f'hubert: {hubert.shape}')
         # print(f'pitch: {pitch.shape}')
-        # print(f'speaker: {speaker.shape}')
         # print(f'ppg: {ppg.shape}')
+
+        # Find the maximum sequence length
+        max_length = max(hubert.size(1), pitch.size(1), ppg.size(1))
+
+        # Pad all sequences to the maximum length
+        hubert = nn.functional.pad(hubert, (0, 0, 0, max_length - hubert.size(1)))
+        pitch = nn.functional.pad(pitch, (0, 0, 0, max_length - pitch.size(1)))
+        ppg = nn.functional.pad(ppg, (0, 0, 0, max_length - ppg.size(1)))
 
         # Combine features
         combined_features = hubert + pitch + ppg  # Element-wise addition
