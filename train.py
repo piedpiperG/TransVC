@@ -26,7 +26,7 @@ mel_dir = 'data_svc/specs/speaker1'
 wav_dir = 'data_svc/waves-16k/speaker1'
 
 dataset = AudioFeatureDataset(hubert_dir, pitch_dir, speaker_dir, ppg_dir, mel_dir, wav_dir)
-dataloader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=dataset.collate_fn)
+dataloader = DataLoader(dataset, batch_size=8, shuffle=True, collate_fn=dataset.collate_fn)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--config', type=str, required=False, default='configs/base.yaml',
@@ -40,8 +40,8 @@ with open(args.config, 'r') as f:
 
 # 模型定义
 feature_sizes = {'hubert': 256, 'ppg': 1280, 'speaker': 256, 'pitch': 1, 'combined': 192}
-encoder = SpeechFeatureTransformer(feature_sizes, nhead=8, num_encoder_layers=12, dim_feedforward=2048)
-decoder = SpeechFeatureDecoder(feature_size=192, nhead=8, num_decoder_layers=12, dim_feedforward=2048, mel_bins=513,
+encoder = SpeechFeatureTransformer(feature_sizes, nhead=8, num_encoder_layers=6, dim_feedforward=2048)
+decoder = SpeechFeatureDecoder(feature_size=192, nhead=8, num_decoder_layers=6, dim_feedforward=2048, mel_bins=513,
                                hp=hp)
 
 # 将模型放到GPU上（如果可用）
@@ -50,8 +50,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 encoder.to(device)
 decoder.to(device)
 
-encoder_optimizer = Adam(encoder.parameters(), lr=0.0001)
-decoder_optimizer = Adam(decoder.parameters(), lr=0.0001)
+encoder_optimizer = Adam(encoder.parameters(), lr=0.00001)
+decoder_optimizer = Adam(decoder.parameters(), lr=0.00001)
 
 loss_function = torch.nn.MSELoss()  # 定义损失函数
 
@@ -70,7 +70,7 @@ output_dir = 'output_audio'
 os.makedirs(output_dir, exist_ok=True)
 
 # 训练循环
-num_epochs = 30
+num_epochs = 300
 for epoch in range(num_epochs):
     epoch_loss = 0
     losses = []  # 列表来存储每个epoch的平均损失
@@ -129,13 +129,4 @@ for epoch in range(num_epochs):
 
 print("Training complete.")
 
-# 绘制损失曲线
-plt.figure(figsize=(10, 5))
-plt.plot(losses, label='Training Loss')
-plt.title('Training Loss Curve')
-plt.xlabel('Epochs')
-plt.ylabel('Loss')
-plt.legend()
-plt.grid(True)
-plt.savefig(os.path.join(output_dir, 'training_loss_curve.png'))  # 保存损失曲线图像
-plt.show()  # 显示图像
+
